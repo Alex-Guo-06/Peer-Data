@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Super Comparison Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--bg:#eff4f7;--card:#fff;--soft:#f8fbfd;--ink:#132534;--muted:#617688;--line:#d8e2ea;--line2:#c3d0da;--accent:#0e4d79;--good:#1b5e20;--warn:#8b5f00;--bad:#b42318;--shadow:0 18px 36px rgba(15,33,47,.08)}
+    *{box-sizing:border-box} html{scroll-behavior:smooth}
+    body{margin:0;min-height:100vh;overflow-x:hidden;font-family:"Segoe UI","Helvetica Neue",sans-serif;color:var(--ink);background:radial-gradient(circle at top left,rgba(14,77,121,.10),transparent 32%),linear-gradient(180deg,#f9fbfc 0%,var(--bg) 100%)}
+    .shell{width:min(1500px,calc(100vw - 24px));margin:0 auto;padding:24px 24px 34px}
+    .hero{position:relative;overflow:visible;border-radius:28px;padding:30px;color:#fff;background:linear-gradient(135deg,#0f2033 0%,#18496f 55%,#1d706f 100%);box-shadow:0 24px 44px rgba(16,33,47,.14)}
+    .hero::after{content:"";position:absolute;right:-90px;bottom:-120px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.20),transparent 68%);pointer-events:none}
+    .hero-grid,.cards,.two-col,.filters,.controls,.mini-stats{display:grid;gap:16px}.hero-grid{grid-template-columns:minmax(0,2.2fr) minmax(320px,1fr)}.filters{grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:14px}.cards{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:20px}.two-col{grid-template-columns:minmax(0,1.42fr) minmax(0,.98fr)}.controls{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));align-items:end}.mini-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card,.panel,.filter{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}.card{padding:16px 18px}.filter{padding:14px 16px}.panel{padding:20px}.hero .card,.hero .filter{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.16);color:#fff;box-shadow:none;backdrop-filter:blur(8px)}
+    .eyebrow{font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;opacity:.72} h1{margin:10px 0 12px;font-size:2.35rem;line-height:1.03} h2{margin:0;font-size:1.12rem} p{margin:0;line-height:1.55}
+    .kicker{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}.hero .kicker{color:rgba(255,255,255,.8)} .value{font-size:1.52rem;font-weight:700;line-height:1.1}.value.compact{font-size:1.18rem}.muted{color:var(--muted)}
+    .section-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:14px}.head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .hero-tools{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:18px;position:relative;z-index:8}.view-toggle{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;position:relative;z-index:7}.view-btn{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);color:#fff;border-radius:16px;padding:12px 18px;font:inherit;font-weight:600;cursor:pointer;min-width:170px}.view-btn.active{background:#fff;color:#163753;border-color:#fff;box-shadow:0 10px 24px rgba(8,19,32,.18)}
+    .controls-intro{max-width:720px}
+    .hero-help{position:relative;z-index:30}
+    .hero-help-btn{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.11);color:#fff;border-radius:16px;padding:12px 14px;font:inherit;cursor:help;min-width:220px;text-align:left}
+    .hero-help-btn strong{display:block;font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;opacity:.82;margin-bottom:5px}
+    .hero-help-btn span{font-size:.92rem;line-height:1.45}
+    .hero-help-panel{position:absolute;right:0;top:100%;margin-top:10px;width:min(360px,calc(100vw - 48px));padding:14px 16px;border-radius:16px;background:rgba(16,33,47,.97);color:#fff;box-shadow:0 20px 34px rgba(0,0,0,.22);font-size:.9rem;line-height:1.55;display:none;z-index:40}
+    .hero-help:hover .hero-help-panel,.hero-help:focus-within .hero-help-panel{display:block}
+    .hero-help-panel strong{display:block;margin-bottom:6px}
+    .badge,.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:.82rem;font-weight:600}.badge{background:#e7f0f7;color:var(--accent);border:1px solid #cfe0ed}.pill{background:#d9ebf7;color:var(--accent)}.pill.good{background:#dff2e3;color:var(--good)}.pill.warn{background:#fff3cf;color:var(--warn)}.pill.bad{background:#fde1df;color:var(--bad)}
+    .table-wrap,.chart-wrap{max-width:100%;overflow:auto;border:1px solid var(--line);border-radius:16px;background:#fff}.chart-wrap{padding:14px}
+    table{border-collapse:separate;border-spacing:0;min-width:100%;width:max-content} th,td{padding:12px 14px;border-bottom:1px solid #e7eef3;border-right:1px solid #eef4f8;white-space:nowrap;vertical-align:middle} th{position:sticky;top:0;z-index:1;background:#eef4f8;color:#28465e;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+    tbody tr:nth-child(even) td{background:#fbfdff} tbody tr:hover td,tbody tr.row-hl td{background:#eef7ff} .col-hl{background:#dceaf8 !important}
+    .fund-cell{display:flex;align-items:center;gap:10px}.logo-fallback,.logo-img{width:30px;height:30px;border-radius:50%;flex:0 0 auto}.logo-fallback{display:grid;place-items:center;background:#dce9f6;color:#0f4c81;font-size:.74rem;font-weight:700;border:1px solid #c6d7e4}.logo-img{object-fit:contain;background:#fff;border:1px solid #c6d7e4;padding:3px}
+    .legend{display:flex;gap:12px 16px;flex-wrap:wrap;margin-top:12px;font-size:.92rem;color:var(--muted)} .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+    .insights{display:grid;gap:12px}.insight{padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;line-height:1.55}.panel-note{padding:12px 14px;border-radius:14px;background:var(--soft);border:1px solid var(--line);color:var(--muted);font-size:.92rem}
+    select,input[type="search"],input[type="range"]{width:100%;padding:14px 16px;border:1px solid var(--line2);border-radius:14px;background:#fff;color:var(--ink);font:inherit;font-size:1rem;min-height:56px;background-clip:padding-box} select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,#617688 50%),linear-gradient(135deg,#617688 50%,transparent 50%);background-position:calc(100% - 22px) calc(50% - 2px),calc(100% - 16px) calc(50% - 2px);background-size:6px 6px,6px 6px;background-repeat:no-repeat;padding-right:40px} select:hover,input[type="search"]:hover{border-color:#95b5ca;border-radius:14px} select:focus,input:focus{outline:none;border-color:#6aa6cc;box-shadow:0 0 0 3px rgba(102,170,211,.18);border-radius:14px} input[type="range"]{padding:0}
+    .filter{display:flex;align-items:center;gap:16px;min-height:92px}.filter .kicker{margin:0;min-width:130px}.filter select,.filter .checkline{flex:1;min-width:0}.checkline{display:flex;align-items:center;gap:10px;min-height:56px;font-size:1rem}.toolbar{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:12px}.toolbar .search{width:min(340px,100%)}.panel-expand{border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:999px;padding:8px 14px;font:inherit;font-size:.92rem;cursor:pointer}.panel-expand:hover{background:#f4f8fb}
+    .tooltip{position:fixed;display:none;pointer-events:none;background:rgba(16,33,47,.96);color:#fff;padding:12px 14px;border-radius:14px;max-width:300px;z-index:20;box-shadow:0 20px 34px rgba(0,0,0,.18);font-size:.9rem;line-height:1.5}
+    .status{display:none;padding:14px 16px;border-radius:14px;border:1px solid #d9e2e9;background:#f7fafc;color:#294255}.status.error{border-color:#efb9b5;background:#fff3f2;color:#7a231d}.empty{padding:20px;color:var(--muted);text-align:center}.axis{font-size:11px;fill:#5f7688}.footer{padding:20px 2px 8px;color:var(--muted);font-size:.92rem}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(10,20,30,.56);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px;z-index:60}.modal-backdrop.open{display:flex}.modal-panel{width:min(1320px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:24px;box-shadow:0 28px 60px rgba(0,0,0,.25);padding:20px 20px 24px}.modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.modal-close{border:1px solid var(--line2);background:#fff;border-radius:999px;padding:8px 14px;font:inherit;cursor:pointer}.modal-body .chart-wrap,.modal-body .table-wrap{max-width:none}.modal-body svg{width:100%;height:auto}
+    @media (max-width:1180px){.hero-grid,.two-col{grid-template-columns:1fr}.mini-stats{grid-template-columns:repeat(4,minmax(0,1fr))}} @media (max-width:760px){.shell{padding:16px}h1{font-size:1.88rem}.mini-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.filter{align-items:stretch;flex-direction:column;gap:10px}.filter .kicker{min-width:0}.view-btn{flex:1}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Peer Dashboard</div>
+          <h1>Super Comparison Dashboard</h1>
+          <p>Professional front-end over precomputed Supabase analytics. Cohorts, rankings, catch-up gaps, and drilldown history are produced in Python before the page renders.</p>
+        </div>
+        <div class="mini-stats">
+          <div class="card"><div class="kicker">View</div><div class="value compact" id="heroView">Historical</div></div>
+          <div class="card"><div class="kicker">As Of</div><div class="value compact" id="heroAsOf">-</div></div>
+          <div class="card"><div class="kicker">Universe</div><div class="value compact" id="heroUniverse">-</div></div>
+          <div class="card"><div class="kicker">Selector</div><div class="value compact" id="heroSelector">-</div></div>
+        </div>
+      </div>
+      <div class="hero-tools">
+        <div class="controls-intro">
+          <div class="eyebrow">Controls</div>
+          <p>Choose month, universe, bucket, view mode, threshold, history window, timeframe, and return source from the control bar below.</p>
+        </div>
+        <div class="hero-help">
+          <button class="hero-help-btn" type="button" aria-label="Control help">
+            <strong>Control Help</strong>
+            <span>Hover here for a quick guide to each selector.</span>
+          </button>
+          <div class="hero-help-panel">
+            <strong>How To Read The Controls</strong>
+            <div>`View`: switch between stored month-end snapshots and the latest daily current view.</div>
+            <div>`Month`: choose the historical snapshot date when `Historical` is selected.</div>
+            <div>`Universe` and `Bucket`: define the comparable cohort being ranked.</div>
+            <div>`Timeframe`: changes the headline bubble map and summary emphasis.</div>
+            <div>`Threshold`: highlights the nearest move-up opportunities.</div>
+            <div>`History Window`: controls how many months appear in the drilldown chart.</div>
+            <div>`Return Source`: swaps between adjusted, distribution-adjusted, and raw return series already computed in Python.</div>
+          </div>
+        </div>
+      </div>
+      <div class="view-toggle" id="viewToggle"></div>
+      <div class="filters" id="filters"></div>
+    </section>
+
+    <main style="display:grid;gap:20px;margin-top:22px">
+      <div id="renderStatus" class="status" role="alert"></div>
+      <section class="cards" id="summaryCards"></section>
+      <section class="panel"><div class="section-head"><h2>Executive Snapshot</h2><div class="head-actions"><span class="badge" id="snapshotBadge">Precomputed</span></div></div><div class="panel-note" id="snapshotNote"></div></section>
+      <section class="two-col">
+        <div class="panel"><div class="section-head"><h2>Performance Bubble Map</h2><div class="head-actions"><span class="muted" id="bubbleLabel"></span><button class="panel-expand" type="button" data-modal-title="Performance Bubble Map" data-modal-source="bubbleModalContent">Open larger</button></div></div><div class="chart-wrap" id="bubbleWrap"><svg id="bubbleChart" viewBox="0 0 980 560" width="100%"></svg></div><div class="legend" id="legend"></div></div>
+        <div class="panel"><div class="section-head"><h2>Quick Actions</h2><div class="head-actions"><span class="muted">Closest move-up opportunities</span></div></div><div class="insights" id="quickActions"></div></div>
+      </section>
+      <section class="panel"><div class="section-head"><h2>Comparable Option Set Used</h2><div class="head-actions"><span class="muted">The cohort behind the ranking view</span><button class="panel-expand" type="button" data-modal-title="Comparable Option Set Used" data-modal-source="cohortTable">Open larger</button></div></div><div class="table-wrap" id="cohortTable"></div></section>
+      <section class="panel"><div class="section-head"><h2>Move-Up Table</h2><div class="head-actions"><span class="muted">Where the next peer is within reach</span><button class="panel-expand" type="button" data-modal-title="Move-Up Table" data-modal-source="movesModalContent">Open larger</button></div></div><div class="toolbar"><input class="search" id="movesSearch" type="search" placeholder="Search fund or peer to beat"><span class="badge">Click headers to sort</span></div><div class="table-wrap" id="movesTable"></div></section>
+      <section class="panel"><div class="section-head"><h2>Catch-up Matrix by Timeframe</h2><div class="head-actions"><span class="muted">Gap to next peer in basis points</span><button class="panel-expand" type="button" data-modal-title="Catch-up Matrix by Timeframe" data-modal-source="matrixTable">Open larger</button></div></div><div class="table-wrap" id="matrixTable"></div></section>
+      <section class="panel">
+        <div class="section-head"><h2>Fund Drilldown</h2><div class="head-actions"><span class="muted">Detailed rank, target, and history view</span></div></div>
+        <div class="controls" style="margin-bottom:14px">
+          <div><div class="kicker">Fund</div><select id="fundSelect"></select></div>
+          <div><div class="kicker">History Timeframe</div><select id="historyTimeframe"></select></div>
+        </div>
+        <div class="insights" id="drilldownInsights" style="margin-bottom:14px"></div>
+        <div class="two-col">
+          <div class="panel" style="padding:14px"><div class="section-head"><h2>Selected Fund by Timeframe</h2><div class="head-actions"><span class="muted">Current rank, target return, and gap</span><button class="panel-expand" type="button" data-modal-title="Selected Fund by Timeframe" data-modal-source="detailTable">Open larger</button></div></div><div class="table-wrap" id="detailTable"></div></div>
+          <div class="panel" style="padding:14px"><div class="section-head"><h2>Gap Trend History</h2><div class="head-actions"><span class="muted">How the catch-up gap has moved over time</span><button class="panel-expand" type="button" data-modal-title="Gap Trend History" data-modal-source="historyWrap">Open larger</button></div></div><div class="chart-wrap" id="historyWrap"><svg id="historyChart" viewBox="0 0 700 260" width="100%"></svg></div></div>
+        </div>
+      </section>
+    </main>
+    <div class="footer">This page reads only precomputed Supabase tables. No ranking or performance calculations are done in the browser.</div>
+  </div>
+  <div id="tooltip" class="tooltip"></div>
+  <div id="modalBackdrop" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2 id="modalTitle">Expanded View</h2>
+        <button id="modalClose" class="modal-close" type="button">Close</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+  <script>
+    const SUPABASE_URL="https://gxsxoznapmadgzbjqtwm.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY="sb_publishable_5ktlAnIBMQJMu8TE9ox7fQ_IdwZcyie";
+    const METRICS=["1M","FYTD","1Y","2Y","3Y","5Y"];
+    const GROWTH_BUCKETS=["Balanced","Conservative","Defensive","Diversified","Growth","High Growth"];
+    const ASSET_CLASS_BUCKETS=["Shares/Equity","Property","Infrastructure","Fixed Interest/Credit","Cash","Real Assets/Alternatives"];
+    const UNIVERSES=["Core","Asset Class","Social/Index"];
+    const RETURN_MODES=["Adjusted preferred (adjusted_cod > CoD_dist > CoD)","Distribution-adjusted (CoD_dist fallback CoD)","Raw CoD"];
+    const ACTION_COLORS={"Leader":"#1B5E20","Hot move (<=10 bps)":"#2E7D32","Near move (<=25 bps)":"#66BB6A","Reach move (<=50 bps)":"#FFB300","Needs work (>50 bps)":"#E53935"};
+    const COMPANY_ICONS={
+      ART:"../logos/ART.png",
+      AUSSUP:"../logos/AustralianSuper.png",
+      AUSTRALIANSUPER:"../logos/AustralianSuper.png",
+      AWARE:"../logos/Aware.png",
+      CFS:"../logos/CFS.png",
+      ESSENTIAL:"../logos/Essential.png",
+      HOSTPLUS:"../logos/HOSTPLUS.png",
+      MLC:"../logos/MLC.png",
+      REST:"../logos/Rest.png",
+      UNI:"../logos/UniSuper.png",
+      UNISUPER:"../logos/UniSuper.png"
+    };
+    let supabaseClient=null;
+    const tooltip=document.getElementById("tooltip");
+    const state={dates:[],latestCurrentDate:"",cohorts:[],ladderRows:[],historyRows:[],viewMode:"historical",asOf:"",universe:"Core",selectorType:"growth_bucket",selectorValue:"",timeframe:"1Y",historyTimeframe:"1Y",thresholdBps:25,historyMonths:18,returnMode:RETURN_MODES[0],qcOnly:true,selectedFundId:"",movesSearch:""};
+    const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
+    const fmtPct=v=>Number.isFinite(Number(v))?`${(Number(v)*100).toFixed(2)}%`:"";
+    const fmtBps=v=>Number.isFinite(Number(v))?`${Number(v).toFixed(1)} bps`:"";
+    const fmtNum=(v,d=2)=>Number.isFinite(Number(v))?Number(v).toFixed(d):"";
+    const dash=v=>v?String(v):"-";
+    const setStatus=(msg,isError=false)=>{const n=document.getElementById("renderStatus");n.style.display=msg?"block":"none";n.className=isError?"status error":"status";n.textContent=msg||"";};
+    const showTooltip=(e,html)=>{tooltip.style.display="block";tooltip.innerHTML=html;tooltip.style.left=`${e.clientX+16}px`;tooltip.style.top=`${e.clientY+16}px`;};
+    const moveTooltip=e=>{tooltip.style.left=`${e.clientX+16}px`;tooltip.style.top=`${e.clientY+16}px`;};
+    const hideTooltip=()=>{tooltip.style.display="none";};
+    const pillClass=label=>label==="Leader"?"good":(String(label).includes("Hot")||String(label).includes("Near")||String(label).includes("Reach")?"warn":"bad");
+    const timeframeContext=metric=>metric==="1M"?"1M is the shortest stored ranking window and is best read as the most immediate peer view.":((metric==="FYTD"||metric==="1Y")?`${metric} is a multi-month window return, not a single month movement target.`:`${metric} is annualised. Closing the gap requires sustained relative outperformance, not one strong month.`);
+    const currentAsOf=()=>state.viewMode==="current"?state.latestCurrentDate:state.asOf;
+    const companyKey=company=>String(company||"").toUpperCase().replace(/[^A-Z]/g,"");
+    const companyIcon=company=>COMPANY_ICONS[companyKey(company)]||"";
+    const shortLabel=row=>String(row?.short_label||row?.company||"").slice(0,4).toUpperCase();
+    const modalBackdrop=document.getElementById("modalBackdrop");
+    function fundCellHtml(label,row){
+      const icon=companyIcon(row?.company),text=esc(label),short=esc(shortLabel(row));
+      const visual=icon
+        ? `<img class="logo-img" src="${esc(icon)}" alt="${esc(row?.company||label)} icon" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'logo-fallback',textContent:'${short}'}))">`
+        : `<span class="logo-fallback">${short}</span>`;
+      return `<div class="fund-cell">${visual}<span>${text}</span></div>`;
+    }
+    function getSupabase(){
+      if(supabaseClient)return supabaseClient;
+      if(!window.supabase||typeof window.supabase.createClient!=="function"){
+        throw new Error("Supabase client library did not load. Check internet access to the jsDelivr CDN or host the library locally.");
+      }
+      supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+      return supabaseClient;
+    }
+    const parseMaybeJson=value=>{if(value==null)return value;if(typeof value!=="string")return value;try{return JSON.parse(value);}catch(_){return value;}};
+    const sortedDates=values=>[...new Set((values||[]).filter(Boolean).map(v=>String(v)))].sort();
+    function selectorOptionsForUniverse(universe){
+      const selectorType=universe==="Asset Class"?"asset_class_bucket":"growth_bucket";
+      let values=[...new Set(state.cohorts.filter(r=>r.universe===universe&&r.selector_type===selectorType).map(r=>r.selector_value).filter(Boolean))].sort();
+      if(!values.length)values=selectorType==="asset_class_bucket"?ASSET_CLASS_BUCKETS:[...GROWTH_BUCKETS];
+      return {selectorType,values};
+    }
+    const cohortRows=()=>state.cohorts.filter(r=>r.universe===state.universe&&r.selector_type===state.selectorType&&r.selector_value===state.selectorValue).sort((a,b)=>Number(a.display_order??0)-Number(b.display_order??0)||String(a.company).localeCompare(String(b.company)));
+    const timeframeRows=metric=>state.ladderRows.filter(r=>r.timeframe===metric).sort((a,b)=>Number(a.rank)-Number(b.rank));
+    function uniqueFunds(){const seen=new Map();state.ladderRows.forEach(r=>{if(!seen.has(r.fund_id))seen.set(r.fund_id,{fund_id:r.fund_id,display_name:r.display_name});});return [...seen.values()].sort((a,b)=>a.display_name.localeCompare(b.display_name));}
+    async function fetchBootstrapRows(){
+      let query=getSupabase().from("fund_ladder").select("as_of_date,view_mode,universe,selector_type,selector_value").limit(5000);
+      query=query.order("as_of_date",{ascending:false});
+      const res=await query;
+      if(res.error)throw res.error;
+      return res.data||[];
+    }
+    async function fetchInitialState(){
+      const meta={};
+      let metaRows=[],cohortRowsData=[];
+      const [metaRes,cohortsRes]=await Promise.allSettled([
+        getSupabase().from("dashboard_meta").select("*"),
+        getSupabase().from("fund_cohorts").select("*").order("universe").order("selector_value").order("company")
+      ]);
+      if(metaRes.status==="fulfilled"&&!metaRes.value.error)metaRows=metaRes.value.data||[];
+      if(cohortsRes.status==="fulfilled"&&!cohortsRes.value.error)cohortRowsData=cohortsRes.value.data||[];
+      metaRows.forEach(row=>{meta[row.meta_key]=parseMaybeJson(row.meta_value);});
+      state.dates=sortedDates(meta.historical_as_of_dates||[]);
+      state.latestCurrentDate=meta.latest_current_date?String(meta.latest_current_date):"";
+      state.cohorts=cohortRowsData.map((row,idx)=>({...row,display_order:idx+1,short_label:String(row.company||"").slice(0,4).toUpperCase()}));
+      if(!state.dates.length||!state.latestCurrentDate||!state.cohorts.length){
+        const bootstrapRows=await fetchBootstrapRows();
+        const histDates=bootstrapRows.filter(row=>row.view_mode==="historical").map(row=>row.as_of_date);
+        const currentDates=bootstrapRows.filter(row=>row.view_mode==="current").map(row=>row.as_of_date).sort();
+        if(!state.dates.length)state.dates=sortedDates(histDates);
+        if(!state.latestCurrentDate&&currentDates.length)state.latestCurrentDate=currentDates[currentDates.length-1];
+      }
+      if(!state.asOf)state.asOf=state.dates[state.dates.length-1]||"";
+      if(!state.dates.length&&state.latestCurrentDate){
+        state.viewMode="current";
+        state.asOf=state.latestCurrentDate;
+      }
+      const options=selectorOptionsForUniverse(state.universe);
+      state.selectorType=options.selectorType;
+      if(!options.values.includes(state.selectorValue))state.selectorValue=options.values.includes("Growth")?"Growth":(options.values[0]||"");
+    }
+    async function fetchLadderRows(){
+      let query=getSupabase().from("fund_ladder").select("*");
+      query=query.eq("view_mode",state.viewMode).eq("selector_type",state.selectorType).eq("selector_value",state.selectorValue).eq("universe",state.universe).eq("return_mode",state.returnMode).eq("qc_only",state.qcOnly);
+      if(state.viewMode==="historical"&&state.asOf)query=query.eq("as_of_date",state.asOf);
+      if(state.viewMode==="current"&&state.latestCurrentDate)query=query.eq("as_of_date",state.latestCurrentDate);
+      const res=await query.order("timeframe").order("rank");
+      if(res.error)throw res.error;
+      state.ladderRows=res.data||[];
+    }
+    async function fetchHistoryRows(){
+      if(!state.selectedFundId){state.historyRows=[];return;}
+      const res=await getSupabase().from("fund_ladder").select("as_of_date,timeframe,gap_to_next_bps,display_name").eq("view_mode","historical").eq("selector_type",state.selectorType).eq("selector_value",state.selectorValue).eq("universe",state.universe).eq("return_mode",state.returnMode).eq("qc_only",state.qcOnly).eq("fund_id",state.selectedFundId).order("as_of_date");
+      if(res.error)throw res.error;
+      state.historyRows=res.data||[];
+    }
+    function highlightTable(table){
+      table.querySelectorAll("td,th").forEach(cell=>{
+        cell.addEventListener("mouseenter",()=>{const idx=cell.dataset.idx;table.querySelectorAll(`[data-idx="${idx}"]`).forEach(node=>node.classList.add("col-hl"));});
+        cell.addEventListener("mouseleave",()=>{table.querySelectorAll(".col-hl").forEach(node=>node.classList.remove("col-hl"));});
+      });
+      table.querySelectorAll("tbody tr").forEach(row=>{row.addEventListener("mouseenter",()=>row.classList.add("row-hl"));row.addEventListener("mouseleave",()=>row.classList.remove("row-hl"));});
+    }
+    function makeTable(containerId,columns,rows,initialSortKey,initialSortDir="asc"){
+      const container=document.getElementById(containerId);let working=[...rows],sortKey=initialSortKey,sortDir=initialSortDir;
+      const draw=()=>{
+        const sortCol=columns.find(col=>col.key===sortKey);
+        working.sort((a,b)=>{const av=a[sortKey],bv=b[sortKey],aBlank=av==null||av==="",bBlank=bv==null||bv==="";if(aBlank&&bBlank)return 0;if(aBlank)return 1;if(bBlank)return -1;const cmp=sortCol&&sortCol.numeric?Number(av)-Number(bv):String(av).localeCompare(String(bv));return sortDir==="asc"?cmp:-cmp;});
+        container.innerHTML="";
+        if(!working.length){container.innerHTML=`<div class="empty">No rows available for this selection.</div>`;return;}
+        const table=document.createElement("table"),thead=document.createElement("thead"),headerRow=document.createElement("tr");
+        columns.forEach((col,index)=>{const th=document.createElement("th");th.textContent=col.label;th.dataset.idx=index;th.onclick=()=>{if(sortKey===col.key)sortDir=sortDir==="asc"?"desc":"asc";else{sortKey=col.key;sortDir=col.defaultDir||"asc";}draw();};headerRow.appendChild(th);});
+        thead.appendChild(headerRow);table.appendChild(thead);
+        const tbody=document.createElement("tbody");
+        working.forEach(row=>{const tr=document.createElement("tr");columns.forEach((col,index)=>{const td=document.createElement("td");td.dataset.idx=index;if(col.type==="pill")td.innerHTML=`<span class="pill ${pillClass(row[col.key])}">${esc(row[col.key])}</span>`;else if(col.type==="fund"||col.type==="company")td.innerHTML=fundCellHtml(row[col.key],row);else td.textContent=col.format?col.format(row[col.key]):(row[col.key]??"");tr.appendChild(td);});tbody.appendChild(tr);});
+        table.appendChild(tbody);container.appendChild(table);highlightTable(table);
+      };
+      draw();
+      return {update(nextRows){working=[...nextRows];draw();}};
+    }
+    function renderHeroSummary(){
+      document.getElementById("heroView").textContent=state.viewMode==="current"?"Current":"Historical";
+      document.getElementById("heroAsOf").textContent=dash(currentAsOf());
+      document.getElementById("heroUniverse").textContent=dash(state.universe);
+      document.getElementById("heroSelector").textContent=dash(state.selectorValue);
+    }
+    function buildFilters(){
+      const options=selectorOptionsForUniverse(state.universe);state.selectorType=options.selectorType;
+      if(!options.values.includes(state.selectorValue))state.selectorValue=options.values.includes("Growth")?"Growth":(options.values[0]||"");
+      const asOfDisabled=state.viewMode==="current"||!state.dates.length;
+      document.getElementById("viewToggle").innerHTML=`
+        <button class="view-btn ${state.viewMode==="historical"?"active":""}" type="button" id="viewHistorical">Historical</button>
+        <button class="view-btn ${state.viewMode==="current"?"active":""}" type="button" id="viewCurrent">Current</button>`;
+      document.getElementById("filters").innerHTML=`
+        <div class="filter"><div class="kicker">Month</div><select id="filterAsOf" ${asOfDisabled?"disabled":""}>${(state.dates.length?state.dates:[""]).map(v=>`<option value="${v}" ${v===state.asOf?"selected":""}>${esc(v||"No historical dates loaded")}</option>`).join("")}</select></div>
+        <div class="filter"><div class="kicker">Universe</div><select id="filterUniverse">${UNIVERSES.map(v=>`<option value="${v}" ${state.universe===v?"selected":""}>${v==="Social/Index"?"Social / Index":v}</option>`).join("")}</select></div>
+        <div class="filter"><div class="kicker">${state.selectorType==="asset_class_bucket"?"Bucket / Asset Class":"Bucket / Growth"}</div><select id="filterSelector">${options.values.map(v=>`<option value="${esc(v)}" ${v===state.selectorValue?"selected":""}>${esc(v)}</option>`).join("")}</select></div>
+        <div class="filter"><div class="kicker">Timeframe</div><select id="filterTimeframe">${METRICS.map(v=>`<option value="${v}" ${v===state.timeframe?"selected":""}>${v}</option>`).join("")}</select></div>
+        <div class="filter"><div class="kicker">Threshold</div><select id="filterThreshold">${[10,25,50,80].map(v=>`<option value="${v}" ${v===state.thresholdBps?"selected":""}>${v} bps</option>`).join("")}</select></div>
+        <div class="filter"><div class="kicker">History Window</div><select id="filterHistoryMonths">${[6,12,18,24,36].map(v=>`<option value="${v}" ${v===state.historyMonths?"selected":""}>${v} months</option>`).join("")}</select></div>
+        <div class="filter"><div class="kicker">Return Source</div><select id="filterReturnMode">${RETURN_MODES.map(v=>`<option value="${esc(v)}" ${v===state.returnMode?"selected":""}>${esc(v)}</option>`).join("")}</select></div>
+        <div class="filter"><div class="kicker">QC Filter</div><label class="checkline"><input id="filterQcOnly" type="checkbox" ${state.qcOnly?"checked":""}><span>QC pass only</span></label></div>`;
+      document.getElementById("viewHistorical").onclick=async()=>{if(state.viewMode!=="historical"){state.viewMode="historical";await refreshDashboard();}};
+      document.getElementById("viewCurrent").onclick=async()=>{if(state.viewMode!=="current"){state.viewMode="current";await refreshDashboard();}};
+      document.getElementById("filterAsOf").onchange=async e=>{state.asOf=e.target.value;await refreshDashboard();};
+      document.getElementById("filterUniverse").onchange=async e=>{state.universe=e.target.value;const next=selectorOptionsForUniverse(state.universe);state.selectorType=next.selectorType;state.selectorValue=next.values.includes("Growth")?"Growth":(next.values[0]||"");await refreshDashboard();};
+      document.getElementById("filterSelector").onchange=async e=>{state.selectorValue=e.target.value;await refreshDashboard();};
+      document.getElementById("filterTimeframe").onchange=()=>{state.timeframe=document.getElementById("filterTimeframe").value;renderAll();};
+      document.getElementById("filterThreshold").onchange=()=>{state.thresholdBps=Number(document.getElementById("filterThreshold").value);renderAll();};
+      document.getElementById("filterHistoryMonths").onchange=async()=>{state.historyMonths=Number(document.getElementById("filterHistoryMonths").value);await renderHistory();};
+      document.getElementById("filterReturnMode").onchange=async e=>{state.returnMode=e.target.value;await refreshDashboard();};
+      document.getElementById("filterQcOnly").onchange=async e=>{state.qcOnly=e.target.checked;await refreshDashboard();};
+    }
+    function renderSummary(){
+      const rows=timeframeRows(state.timeframe),moves=rows.filter(row=>Number(row.rank)>1&&Number.isFinite(Number(row.gap_to_next_bps))),thresholdMoves=moves.filter(row=>Number(row.gap_to_next_bps)<=state.thresholdBps),sortedMoves=[...moves].sort((a,b)=>Number(a.gap_to_next_bps)-Number(b.gap_to_next_bps)),medianGap=sortedMoves.length?sortedMoves[Math.floor(sortedMoves.length/2)].gap_to_next_bps:null;
+      document.getElementById("summaryCards").innerHTML=`<div class="card"><div class="kicker">Funds in Cohort</div><div class="value">${new Set(rows.map(row=>row.fund_id)).size}</div></div><div class="card"><div class="kicker">As Of</div><div class="value">${esc(currentAsOf())}</div></div><div class="card"><div class="kicker">Within Threshold</div><div class="value">${thresholdMoves.length}</div></div><div class="card"><div class="kicker">Median Gap To Next</div><div class="value">${medianGap==null?"n/a":fmtBps(medianGap)}</div></div>`;
+      document.getElementById("snapshotBadge").textContent=state.viewMode==="current"?"Daily latest snapshot":"Stored month-end snapshot";
+      document.getElementById("snapshotNote").textContent=timeframeContext(state.timeframe);
+      document.getElementById("bubbleLabel").textContent=`${state.timeframe} return against rank`;
+    }
+    function renderLegend(){document.getElementById("legend").innerHTML=Object.entries(ACTION_COLORS).map(([label,color])=>`<span style="display:inline-flex;align-items:center;gap:7px"><i class="dot" style="background:${color}"></i>${esc(label)}</span>`).join("");}
+    function renderQuickActions(){
+      const rows=timeframeRows(state.timeframe).filter(row=>Number(row.rank)>1&&Number(row.gap_to_next_bps)<=state.thresholdBps).sort((a,b)=>Number(a.gap_to_next_bps)-Number(b.gap_to_next_bps)).slice(0,3);
+      document.getElementById("quickActions").innerHTML=rows.length?rows.map(row=>`<div class="insight"><strong>${esc(row.display_name)}</strong><br>Rank ${row.rank} in ${esc(row.timeframe)}. Needs <strong>${fmtBps(row.gap_to_next_bps)}</strong> to pass <strong>${esc(row.peer_to_beat)}</strong>.<br>Approx monthly alpha needed: <strong>${fmtNum(row.required_monthly_alpha_bps)} bps</strong>.</div>`).join(""):`<div class="insight muted">No funds sit inside the selected threshold in this view.</div>`;
+    }
+    function renderCohortTable(){
+      const rows=cohortRows().map(row=>({company:row.company,fundname:row.fundname,growth_bucket:row.growth_bucket||"",asset_class_bucket:row.asset_class_bucket||"",universe:row.universe,theme:row.theme||""}));
+      makeTable("cohortTable",[{key:"company",label:"Company",type:"company"},{key:"fundname",label:"Selected Comparable Option"},{key:"growth_bucket",label:"Growth Bucket"},{key:"asset_class_bucket",label:"Asset Class"},{key:"universe",label:"Universe"},{key:"theme",label:"Theme"}],rows,"company");
+    }
+    function renderMovesTable(){
+      const baseRows=state.ladderRows.filter(row=>Number(row.rank)>1).map(row=>({...row,required_lift_pct_pt:Number(row.gap_to_next||0)*100}));
+      const table=makeTable("movesTable",[{key:"timeframe",label:"Timeframe"},{key:"display_name",label:"Fund",type:"fund"},{key:"rank",label:"Current Rank",numeric:true},{key:"peer_to_beat",label:"Peer To Beat"},{key:"metric_return",label:"Current Return",numeric:true,format:fmtPct,defaultDir:"desc"},{key:"return_to_beat",label:"Target Return",numeric:true,format:fmtPct,defaultDir:"desc"},{key:"gap_to_next_bps",label:"Gap To Next (bps)",numeric:true,format:fmtBps},{key:"required_lift_pct_pt",label:"Required Lift (pct-pt)",numeric:true,format:v=>fmtNum(v,2)},{key:"required_monthly_alpha_bps",label:"Approx Monthly Alpha Needed (bps)",numeric:true,format:v=>fmtNum(v,2)},{key:"action_bucket",label:"Move Signal",type:"pill"},{key:"interpretation",label:"Interpretation"}],baseRows,"gap_to_next_bps");
+      const search=state.movesSearch.trim().toLowerCase();
+      if(search)table.update(baseRows.filter(row=>String(row.display_name||"").toLowerCase().includes(search)||String(row.peer_to_beat||"").toLowerCase().includes(search)));
+    }
+    function renderMatrixTable(){
+      const rows=uniqueFunds().map(fund=>{const out={fund:fund.display_name};METRICS.forEach(metric=>{const row=state.ladderRows.find(item=>item.fund_id===fund.fund_id&&item.timeframe===metric);out[metric]=row?row.gap_to_next_bps:null;});return out;});
+      makeTable("matrixTable",[{key:"fund",label:"Fund"},...METRICS.map(metric=>({key:metric,label:metric,numeric:true,format:fmtBps}))],rows,"fund");
+    }
+    function renderBubble(){
+      const rows=timeframeRows(state.timeframe),svg=document.getElementById("bubbleChart"),ns="http://www.w3.org/2000/svg";svg.innerHTML="";
+      if(!rows.length){const t=document.createElementNS(ns,"text");t.setAttribute("x","490");t.setAttribute("y","280");t.setAttribute("text-anchor","middle");t.setAttribute("fill","#617384");t.textContent="No data available for this timeframe.";svg.appendChild(t);return;}
+      const W=980,H=560,m={l:78,r:24,t:24,b:62},iw=W-m.l-m.r,ih=H-m.t-m.b,vals=rows.map(row=>Number(row.metric_return)*100),ranks=rows.map(row=>Number(row.rank)),minX=Math.min(...vals)-0.6,maxX=Math.max(...vals)+0.6,minRank=Math.min(...ranks),maxRank=Math.max(...ranks);
+      const x=v=>m.l+((v-minX)/Math.max(maxX-minX,0.01))*iw,y=v=>m.t+((v-minRank)/Math.max(maxRank-minRank,1))*ih;
+      for(let i=0;i<6;i+=1){const xv=minX+((maxX-minX)/5)*i,px=x(xv);const line=document.createElementNS(ns,"line");line.setAttribute("x1",px);line.setAttribute("x2",px);line.setAttribute("y1",m.t);line.setAttribute("y2",m.t+ih);line.setAttribute("stroke","#e4ebf1");svg.appendChild(line);const label=document.createElementNS(ns,"text");label.setAttribute("x",px);label.setAttribute("y",H-24);label.setAttribute("text-anchor","middle");label.setAttribute("fill","#617384");label.setAttribute("font-size","12");label.textContent=`${xv.toFixed(2)}%`;svg.appendChild(label);}
+      for(let rank=minRank;rank<=maxRank;rank+=1){const py=y(rank);const line=document.createElementNS(ns,"line");line.setAttribute("x1",m.l);line.setAttribute("x2",m.l+iw);line.setAttribute("y1",py);line.setAttribute("y2",py);line.setAttribute("stroke","#eef3f7");svg.appendChild(line);const label=document.createElementNS(ns,"text");label.setAttribute("x",m.l-18);label.setAttribute("y",py+4);label.setAttribute("text-anchor","end");label.setAttribute("fill","#617384");label.setAttribute("font-size","12");label.textContent=String(rank);svg.appendChild(label);}
+      const axisX=document.createElementNS(ns,"line");axisX.setAttribute("x1",m.l);axisX.setAttribute("x2",m.l+iw);axisX.setAttribute("y1",m.t+ih);axisX.setAttribute("y2",m.t+ih);axisX.setAttribute("stroke","#9fb1c1");svg.appendChild(axisX);
+      const axisY=document.createElementNS(ns,"line");axisY.setAttribute("x1",m.l);axisY.setAttribute("x2",m.l);axisY.setAttribute("y1",m.t);axisY.setAttribute("y2",m.t+ih);axisY.setAttribute("stroke","#9fb1c1");svg.appendChild(axisY);
+      rows.forEach(row=>{const g=document.createElementNS(ns,"g"),px=x(Number(row.metric_return)*100),py=y(Number(row.rank)),gap=Number(row.gap_to_next_bps),radius=Number(row.rank)===1?44:Math.max(28,54-Math.min(18,gap/8));const icon=companyIcon(row.company),iconSize=Math.max(42,Math.min(radius*1.45,64));if(icon){const img=document.createElementNS(ns,"image");img.setAttribute("href",icon);img.setAttribute("x",px-(iconSize/2));img.setAttribute("y",py-(iconSize/2));img.setAttribute("width",String(iconSize));img.setAttribute("height",String(iconSize));img.setAttribute("preserveAspectRatio","xMidYMid meet");g.appendChild(img);}else{const label=document.createElementNS(ns,"text");label.setAttribute("x",px);label.setAttribute("y",py+6);label.setAttribute("text-anchor","middle");label.setAttribute("font-size","15");label.setAttribute("font-weight","700");label.textContent=shortLabel(row);g.appendChild(label);}g.addEventListener("mouseenter",event=>showTooltip(event,`<strong>${esc(row.display_name)}</strong><br>Rank: ${row.rank}<br>Return: ${fmtPct(row.metric_return)}<br>Peer to beat: ${esc(row.peer_to_beat||"Leader")}<br>Gap to next: ${fmtBps(row.gap_to_next_bps)}<br>Monthly alpha needed: ${fmtNum(row.required_monthly_alpha_bps)} bps`));g.addEventListener("mousemove",moveTooltip);g.addEventListener("mouseleave",hideTooltip);svg.appendChild(g);});
+    }
+    function modalHtmlFor(sourceId){
+      if(sourceId==="bubbleModalContent"){
+        return `<div class="chart-wrap">${document.getElementById("bubbleChart").outerHTML}</div><div class="legend">${document.getElementById("legend").innerHTML}</div>`;
+      }
+      if(sourceId==="movesModalContent"){
+        return `<div class="toolbar"><span class="badge">Search stays in the main view</span><span class="muted">Expanded copy of the current move-up table</span></div><div class="table-wrap">${document.getElementById("movesTable").innerHTML}</div>`;
+      }
+      const node=document.getElementById(sourceId);
+      if(!node)return `<div class="empty">Nothing to show.</div>`;
+      const wrapperClass=node.classList.contains("chart-wrap")?"chart-wrap":"table-wrap";
+      return `<div class="${wrapperClass}">${node.innerHTML}</div>`;
+    }
+    function openModal(title,sourceId){
+      document.getElementById("modalTitle").textContent=title;
+      document.getElementById("modalBody").innerHTML=modalHtmlFor(sourceId);
+      modalBackdrop.classList.add("open");
+      modalBackdrop.setAttribute("aria-hidden","false");
+    }
+    function closeModal(){
+      modalBackdrop.classList.remove("open");
+      modalBackdrop.setAttribute("aria-hidden","true");
+      document.getElementById("modalBody").innerHTML="";
+    }
+    function bindExpandButtons(){
+      document.querySelectorAll(".panel-expand").forEach(btn=>{
+        btn.onclick=()=>openModal(btn.dataset.modalTitle||"Expanded View",btn.dataset.modalSource||"");
+      });
+    }
+    function renderFundSelectors(){
+      const funds=uniqueFunds(),fundSelect=document.getElementById("fundSelect"),historySelect=document.getElementById("historyTimeframe");
+      if(!funds.length){state.selectedFundId="";fundSelect.innerHTML="";historySelect.innerHTML="";return;}
+      if(!funds.some(fund=>fund.fund_id===state.selectedFundId))state.selectedFundId=funds[0].fund_id;
+      fundSelect.innerHTML=funds.map(fund=>`<option value="${esc(fund.fund_id)}" ${fund.fund_id===state.selectedFundId?"selected":""}>${esc(fund.display_name)}</option>`).join("");
+      if(!METRICS.includes(state.historyTimeframe))state.historyTimeframe=state.timeframe;
+      historySelect.innerHTML=METRICS.map(metric=>`<option value="${metric}" ${metric===state.historyTimeframe?"selected":""}>${metric}</option>`).join("");
+    }
+    function renderDetailTable(){
+      const rows=METRICS.map(metric=>state.ladderRows.find(row=>row.fund_id===state.selectedFundId&&row.timeframe===metric)).filter(Boolean).map(row=>({timeframe:row.timeframe,rank:row.rank,metric_return:row.metric_return,peer_to_beat:row.peer_to_beat||"",return_to_beat:row.return_to_beat,gap_to_next_bps:row.gap_to_next_bps,required_monthly_alpha_bps:row.required_monthly_alpha_bps,interpretation:row.interpretation||""}));
+      makeTable("detailTable",[{key:"timeframe",label:"Timeframe"},{key:"rank",label:"Rank",numeric:true},{key:"metric_return",label:"Current Return",numeric:true,format:fmtPct},{key:"peer_to_beat",label:"Peer To Beat"},{key:"return_to_beat",label:"Target Return",numeric:true,format:fmtPct},{key:"gap_to_next_bps",label:"Gap To Next (bps)",numeric:true,format:fmtBps},{key:"required_monthly_alpha_bps",label:"Approx Monthly Alpha Needed (bps)",numeric:true,format:v=>fmtNum(v,2)},{key:"interpretation",label:"Interpretation"}],rows,"timeframe");
+    }
+    function renderDrilldownInsights(){
+      const fundRows=state.ladderRows.filter(row=>row.fund_id===state.selectedFundId),near=fundRows.find(row=>row.timeframe==="1M"&&Number(row.rank)>1&&Number.isFinite(Number(row.gap_to_next_bps))),long=fundRows.filter(row=>["2Y","3Y","5Y"].includes(row.timeframe)&&Number(row.rank)>1&&Number.isFinite(Number(row.required_monthly_alpha_bps))).sort((a,b)=>Number(a.required_monthly_alpha_bps)-Number(b.required_monthly_alpha_bps))[0],messages=[];
+      if(near)messages.push(`Near-term: 1M gap is ${fmtBps(near.gap_to_next_bps)} to pass ${near.peer_to_beat}.`);
+      if(long)messages.push(`Long-window path: ${long.timeframe} needs ${fmtNum(long.required_monthly_alpha_bps)} bps monthly relative outperformance to pass ${long.peer_to_beat}.`);
+      if(!messages.length)messages.push("Selected fund is already leading or has no stored catch-up path for the current selection.");
+      document.getElementById("drilldownInsights").innerHTML=messages.map(message=>`<div class="insight">${esc(message)}</div>`).join("");
+    }
+    async function renderHistory(){
+      const metric=state.historyTimeframe||state.timeframe,rows=state.historyRows.filter(row=>row.timeframe===metric).slice(-state.historyMonths),svg=document.getElementById("historyChart"),ns="http://www.w3.org/2000/svg";svg.innerHTML="";
+      if(!rows.length){const t=document.createElementNS(ns,"text");t.setAttribute("x","350");t.setAttribute("y","130");t.setAttribute("text-anchor","middle");t.setAttribute("fill","#617384");t.textContent="No historical gap values for this fund and timeframe.";svg.appendChild(t);return;}
+      const W=700,H=260,m={l:58,r:14,t:16,b:36},iw=W-m.l-m.r,ih=H-m.t-m.b,vals=rows.map(row=>Number(row.gap_to_next_bps)),minY=Math.min(...vals),maxY=Math.max(...vals),x=i=>m.l+(i/Math.max(rows.length-1,1))*iw,y=v=>m.t+ih-((v-minY)/Math.max(maxY-minY,1))*ih;
+      svg.insertAdjacentHTML("beforeend",`<line x1="${m.l}" y1="${H-m.b}" x2="${W-m.r}" y2="${H-m.b}" stroke="#9fb1c1"/><line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${H-m.b}" stroke="#9fb1c1"/>`);
+      for(let i=0;i<5;i+=1){const val=minY+((maxY-minY)/4)*i,py=y(val);svg.insertAdjacentHTML("beforeend",`<line x1="${m.l}" y1="${py}" x2="${W-m.r}" y2="${py}" stroke="#edf2f6"/><text class="axis" x="${m.l-10}" y="${py+4}" text-anchor="end">${val.toFixed(1)}</text>`);}
+      const path=rows.map((row,index)=>`${index===0?"M":"L"}${x(index)} ${y(Number(row.gap_to_next_bps))}`).join(" ");svg.insertAdjacentHTML("beforeend",`<path d="${path}" fill="none" stroke="#0f4c81" stroke-width="2.8"/>`);
+      rows.forEach((row,index)=>{svg.insertAdjacentHTML("beforeend",`<circle cx="${x(index)}" cy="${y(Number(row.gap_to_next_bps))}" r="3.4" fill="#0f4c81"/>`);if(index===0||index===rows.length-1||index%Math.max(1,Math.ceil(rows.length/5))===0)svg.insertAdjacentHTML("beforeend",`<text class="axis" x="${x(index)}" y="${H-m.b+16}" text-anchor="middle">${esc(row.as_of_date.slice(0,7))}</text>`);});
+      svg.insertAdjacentHTML("beforeend",`<text class="axis" x="${(m.l+W-m.r)/2}" y="${H-6}" text-anchor="middle">As-of month</text><text class="axis" transform="translate(14 ${(H-m.b+m.t)/2}) rotate(-90)" text-anchor="middle">Gap To Next (bps)</text>`);
+    }
+    function renderAll(){renderHeroSummary();renderSummary();renderLegend();renderQuickActions();renderCohortTable();renderMovesTable();renderMatrixTable();renderBubble();renderFundSelectors();renderDetailTable();renderDrilldownInsights();renderHistory();}
+    async function refreshDashboard(){
+      buildFilters();bindExpandButtons();renderHeroSummary();setStatus("Loading dashboard...");
+      await fetchLadderRows();
+      if(!state.ladderRows.length){document.getElementById("summaryCards").innerHTML="";document.getElementById("cohortTable").innerHTML=`<div class="empty">No rows found for the selected filters.</div>`;document.getElementById("movesTable").innerHTML=`<div class="empty">No move-up rows found.</div>`;document.getElementById("matrixTable").innerHTML=`<div class="empty">No matrix rows found.</div>`;document.getElementById("quickActions").innerHTML=`<div class="insight muted">No quick actions available for this combination.</div>`;document.getElementById("detailTable").innerHTML=`<div class="empty">No drilldown rows available.</div>`;document.getElementById("drilldownInsights").innerHTML="";document.getElementById("bubbleChart").innerHTML=`<text x="490" y="280" text-anchor="middle" fill="#617384">No rows found for the selected filters.</text>`;document.getElementById("historyChart").innerHTML=`<text x="350" y="130" text-anchor="middle" fill="#617384">No history available.</text>`;setStatus("No rows found for the selected filters.");return;}
+      if(!state.selectedFundId||!state.ladderRows.some(row=>row.fund_id===state.selectedFundId))state.selectedFundId=state.ladderRows[0].fund_id;
+      await fetchHistoryRows();renderAll();setStatus("");
+    }
+    async function init(){
+      buildFilters();
+      try{
+        await fetchInitialState();buildFilters();bindExpandButtons();
+        document.getElementById("movesSearch").addEventListener("input",event=>{state.movesSearch=event.target.value||"";renderMovesTable();});
+        document.getElementById("fundSelect").addEventListener("change",async event=>{state.selectedFundId=event.target.value;await fetchHistoryRows();renderDetailTable();renderDrilldownInsights();await renderHistory();});
+        document.getElementById("historyTimeframe").addEventListener("change",async event=>{state.historyTimeframe=event.target.value;await renderHistory();});
+        document.getElementById("modalClose").addEventListener("click",closeModal);
+        modalBackdrop.addEventListener("click",event=>{if(event.target===modalBackdrop)closeModal();});
+        document.addEventListener("keydown",event=>{if(event.key==="Escape"&&modalBackdrop.classList.contains("open"))closeModal();});
+        await refreshDashboard();
+      }catch(error){console.error(error);buildFilters();setStatus(`Initial load failed: ${error.message||"Unknown error"}`,true);}
+    }
+    init();
+  </script>
+</body>
+</html>
